@@ -1,0 +1,892 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>MTG Toolkit</title>
+<style>
+  :root{--bg:#101216;--panel:#1b1f27;--panel2:#242933;--text:#e8eaed;--muted:#9aa0a6;--accent:#6ea8fe;--good:#5fd38d;--warn:#f0b34a;--bad:#ff7b72;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);font-size:15px}
+  nav{position:sticky;top:0;z-index:5;display:flex;background:#0b0d10;border-bottom:1px solid #2a2f3a}
+  nav button{flex:1;background:none;color:var(--muted);border:0;border-bottom:3px solid transparent;border-radius:0;padding:13px 4px;font-size:14px;font-weight:600}
+  nav button.active{color:var(--text);border-bottom-color:var(--accent)}
+  main{max-width:980px;margin:0 auto;padding:12px}
+  .tab{display:none}.tab.active{display:block}
+  .panel{background:var(--panel);border-radius:12px;padding:14px;margin-bottom:12px}
+  h2{font-size:1.05rem;margin:0 0 10px}
+  h3{font-size:.8rem;margin:14px 0 6px;color:var(--muted);text-transform:uppercase;letter-spacing:.05em}
+  button,.btn{background:var(--accent);color:#0b1220;border:0;border-radius:8px;padding:10px 14px;font-weight:600;font-size:15px;cursor:pointer;text-decoration:none;display:inline-block}
+  button.sec,.btn.sec{background:#2c313a;color:var(--text)}
+  button.danger{background:#4a2326;color:#ffb4ae}
+  button.sm{padding:6px 10px;font-size:13px}
+  button:disabled{opacity:.5}
+  input[type=text],input[type=search],textarea,select{background:#111317;color:var(--text);border:1px solid #333;border-radius:8px;padding:9px;font-size:15px;max-width:100%}
+  textarea{width:100%;min-height:150px;font-family:ui-monospace,monospace;font-size:14px}
+  label{font-size:14px;color:var(--muted);display:inline-flex;gap:6px;align-items:center}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center;margin-top:10px}
+  .muted{color:var(--muted);font-size:13px}.bad{color:var(--bad)}.good{color:var(--good)}.warn{color:var(--warn)}
+  progress{width:100%;height:8px}
+  video{width:100%;max-height:50vh;background:#000;border-radius:10px}
+  details{margin-top:8px}summary{cursor:pointer;color:var(--accent)}
+  .rrow{display:flex;gap:10px;align-items:center;padding:8px 0;border-top:1px solid #2a2f3a;flex-wrap:wrap}
+  .rrow img.crop{max-width:150px;border-radius:4px;background:#000}
+  .rrow img.card{height:64px;border-radius:4px}
+  .rname{flex:1;min-width:140px}
+  .badge{font-size:11px;padding:2px 6px;border-radius:10px;background:#2c313a}
+  .badge.ok{background:#17402a;color:var(--good)}.badge.chk{background:#4a3a17;color:var(--warn)}
+  .stepper{display:inline-flex;align-items:center;gap:6px}.stepper button{padding:4px 10px}
+  .grid2{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px}
+  .stats{display:flex;gap:16px;flex-wrap:wrap}.stat b{display:block;font-size:1.3rem}.stat span{font-size:12px;color:var(--muted)}
+  .curve{display:flex;align-items:flex-end;gap:6px;height:130px;margin-top:6px}
+  .col{flex:1;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%}
+  .bar{width:100%;border-radius:4px 4px 0 0;min-height:0}
+  .cl{font-size:11px;color:var(--muted);margin-top:3px}.cv{font-size:11px;margin-bottom:2px}
+  .pip{display:inline-block;width:22px;height:22px;border-radius:50%;text-align:center;line-height:22px;font-size:12px;font-weight:700;color:#111;margin-right:4px}
+  .pW{background:#f8f4d6}.pU{background:#6aa8ff}.pB{background:#9a8a9e}.pR{background:#ff6b5b}.pG{background:#4fc16f}.pC{background:#bbb}
+  table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:5px 6px;text-align:left;border-top:1px solid #2a2f3a}
+  .chip{display:inline-block;background:#2c313a;border-radius:12px;padding:3px 9px;margin:2px;font-size:13px}
+  .chip.gc{background:#4a3a17;color:var(--warn)}
+  .crow{display:flex;gap:8px;align-items:center;padding:4px 0;border-top:1px solid #2a2f3a;flex-wrap:wrap}
+  .crow .nm{flex:1;min-width:130px}.crow img{height:48px;border-radius:3px}
+  .hand{display:flex;gap:6px;flex-wrap:wrap}.hand img{width:23%;min-width:80px;border-radius:6px}
+  .sug{border:1px solid #333;border-radius:8px;margin-top:4px;max-width:420px}.sug div{padding:8px;border-top:1px solid #2a2f3a;cursor:pointer}.sug div:first-child{border-top:0}
+</style>
+</head>
+<body>
+<nav id="nav">
+  <button data-tab="scan" class="active">Scan / Import</button>
+  <button data-tab="library">Library</button>
+  <button data-tab="deck">Deck</button>
+  <button data-tab="print">Print</button>
+</nav>
+<main>
+<div class="panel bad" id="storeWarn" style="display:none"></div>
+
+<!-- ============ SCAN / IMPORT ============ -->
+<section id="tab-scan" class="tab active">
+  <div class="panel">
+    <h2>Scan photos</h2>
+    <div class="muted">Any number of cards per photo: one card, a grid, or a whole deck spread out so every title is visible. The tool reads card titles, not the pile.</div>
+    <div class="row">
+      <input type="file" id="photos" accept="image/*" multiple style="display:none">
+      <input type="file" id="cam" accept="image/*" capture="environment" style="display:none">
+      <button id="takePhoto">Take photo</button>
+      <button id="pickPhotos" class="sec">Choose photos</button>
+    </div>
+    <div class="muted" style="margin-top:6px">Fastest on a phone: lay out 12-18 cards in rows with every title visible and take one photo per batch. Or take photos in your camera app and pick them all here at once.</div>
+    <div class="row">
+      <label><input type="checkbox" id="optGlare" checked> Glare boost (second pass, slower)</label>
+      <label><input type="checkbox" id="optSmall"> Small-text mode (slower)</label>
+      <label><input type="checkbox" id="optRot" checked> Auto-rotate if nothing found</label>
+    </div>
+    <progress id="prog" value="0" max="1" style="display:none"></progress>
+    <div id="scanLog" class="muted" style="white-space:pre-wrap;margin-top:8px"></div>
+    <details><summary>Tips for accurate scans</summary>
+      <ul class="muted">
+        <li>Lay cards flat in rows. Overlap them so only the title strip of each shows, or spread them with a little gap.</li>
+        <li>A stacked pile can't be read: only the top card's title is visible.</li>
+        <li>Light from two sides or from above at a slant, and tilt the phone slightly so the reflection is not directly under the lens.</li>
+        <li>Shoot as sharp and close as you can. If a photo of many cards finds few, retry with Small-text mode or split it into 2-3 photos.</li>
+        <li>Copies: the tool counts how many times it sees a title. If you scan the same card in two photos, it counts twice. Fix quantities on the review list.</li>
+      </ul>
+    </details>
+  </div>
+
+  <div class="panel" id="livePanel">
+    <h2>Live scan (camera)</h2>
+    <div class="muted">Hold cards up one at a time. Browsers only allow the live camera on https or localhost pages. If this page opened as file:// or content://, run <code>python3 -m http.server 8000</code> in the folder with this file (Windows: <code>py -m http.server 8000</code>) and open <code>http://localhost:8000/mtg-toolkit.html</code>. "Take photo" above works without that.</div>
+    <div class="row">
+      <button id="liveStart" class="sec">Start camera</button>
+      <button id="liveStop" class="sec" style="display:none">Stop</button>
+      <label><input type="checkbox" id="liveGlare"> Glare boost</label>
+    </div>
+    <video id="video" playsinline muted style="display:none;margin-top:10px"></video>
+    <div id="liveMsg" class="muted" style="margin-top:6px"></div>
+  </div>
+
+  <div class="panel">
+    <h2>Paste or upload a decklist</h2>
+    <textarea id="deckText" placeholder="Commander&#10;1 Atraxa, Praetors' Voice&#10;&#10;Deck&#10;1 Sol Ring&#10;4 Lightning Bolt&#10;&#10;Sideboard&#10;2 Smash to Smithereens"></textarea>
+    <div class="row">
+      <input type="file" id="deckFile" accept=".txt,.dec,.dek,text/plain">
+      <button id="importText">Add to review list</button>
+    </div>
+  </div>
+
+  <div class="panel" id="reviewPanel" style="display:none">
+    <h2>Review</h2>
+    <div id="reviewSummary" class="muted"></div>
+    <div id="reviewList"></div>
+    <div class="row">
+      <input type="search" id="addBox" placeholder="Add a card by name" style="flex:1;min-width:200px">
+    </div>
+    <div id="addSug"></div>
+    <div class="row">
+      <input type="text" id="saveName" placeholder="Deck name" style="flex:1;min-width:200px">
+      <button id="saveDeck">Save to library</button>
+      <button id="clearScan" class="danger">Clear</button>
+    </div>
+  </div>
+</section>
+
+<!-- ============ LIBRARY ============ -->
+<section id="tab-library" class="tab">
+  <div class="panel">
+    <h2>Deck library</h2>
+    <div id="libList"></div>
+    <div class="row">
+      <button id="exportLib" class="sec">Back up library (JSON)</button>
+      <input type="file" id="importLib" accept=".json,application/json" style="display:none">
+      <button id="importLibBtn" class="sec">Restore from backup</button>
+    </div>
+    <div class="muted" style="margin-top:8px">Decks live in this browser's storage for this page. Clearing site data or switching browsers or devices loses them, so back up now and then.</div>
+  </div>
+</section>
+
+<!-- ============ DECK ============ -->
+<section id="tab-deck" class="tab">
+  <div id="deckBody"><div class="panel muted">Open a deck from the Library tab.</div></div>
+</section>
+
+<!-- ============ PRINT ============ -->
+<section id="tab-print" class="tab">
+  <div class="panel">
+    <h2>Print proxies</h2>
+    <div id="printDeckName" class="muted">Open a deck first.</div>
+    <div class="row">
+      <label><input type="checkbox" id="pCmdr" checked> Include commander</label>
+      <label><input type="checkbox" id="pSide"> Include sideboard</label>
+      <label><input type="checkbox" id="pBasics" checked> Include basic lands</label>
+      <label><input type="checkbox" id="pBack"> Back faces of double-faced cards</label>
+      <label><input type="checkbox" id="pGuides" checked> Cut guides</label>
+    </div>
+    <div class="row">
+      <button id="makePdf">Download PDF</button>
+      <span id="pdfStatus" class="muted"></span>
+    </div>
+  </div>
+  <div class="panel">
+    <strong>Print at Staples (East Syracuse)</strong>
+    <ol class="muted">
+      <li>Download the PDF above (Letter size, 100% scale, 3x3 cards per page).</li>
+      <li>Open Staples Print Services and upload it.</li>
+      <li>Choose: Color, Single-sided, Letter 8.5x11, cardstock (the Cougar 14 stock if listed), quantity 1, no scaling or "fit to page".</li>
+      <li>Select the East Syracuse store for pickup.</li>
+    </ol>
+    <div class="row">
+      <a class="btn" target="_blank" rel="noopener" href="https://www.staples.com/services/printing/">Open Staples Print Services</a>
+      <a class="btn sec" target="_blank" rel="noopener" href="https://www.staples.com/stores/">Find East Syracuse store</a>
+    </div>
+    <div class="muted" style="margin-top:8px">Staples doesn't let outside sites preselect paper or print options, so these settings are a checklist. Proxies are for casual play, not sanctioned tournaments.</div>
+  </div>
+</section>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.1.1/dist/tesseract.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+'use strict';
+const API = 'https://api.scryfall.com';
+const TTL = 7 * 864e5;
+const $ = id => document.getElementById(id);
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+function el(tag, props, ...kids) {
+  const e = document.createElement(tag);
+  for (const [k, v] of Object.entries(props || {})) {
+    if (v === undefined || v === null || v === false) continue;
+    if (k === 'class') e.className = v;
+    else if (k.startsWith('on')) e.addEventListener(k.slice(2), v);
+    else e.setAttribute(k, v === true ? '' : v);
+  }
+  for (const kid of kids.flat()) { if (kid == null || kid === false) continue; e.append(kid.nodeType ? kid : document.createTextNode(String(kid))); }
+  return e;
+}
+const S = { decks: [], cur: null, cards: new Map(), idx: null, scan: { items: new Map() } };
+
+/* ---------- storage (IndexedDB with in-memory fallback) ---------- */
+const kv = (() => {
+  let dbp; const mem = new Map();
+  const open = () => dbp || (dbp = new Promise((res, rej) => {
+    const r = indexedDB.open('mtg-toolkit', 1);
+    r.onupgradeneeded = () => r.result.createObjectStore('kv');
+    r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+  }));
+  return {
+    async get(k) { try { const db = await open(); return await new Promise((res, rej) => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => res(q.result); q.onerror = () => rej(q.error); }); } catch (e) { return mem.get(k); } },
+    async set(k, v) { mem.set(k, v); try { const db = await open(); await new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = res; t.onerror = () => rej(t.error); }); } catch (e) {} },
+    async ok() { // true only if a real write/read round-trip works (false on content:// pages)
+      try { const db = await open(); await new Promise((res, rej) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put('1', '__probe'); t.oncomplete = res; t.onerror = () => rej(t.error); });
+        return await new Promise((res, rej) => { const q = db.transaction('kv').objectStore('kv').get('__probe'); q.onsuccess = () => res(q.result === '1'); q.onerror = () => rej(q.error); }); } catch (e) { return false; }
+    }
+  };
+})();
+const persistDecks = () => kv.set('decks', S.decks);
+let cardSaveT; const persistCardsSoon = () => { clearTimeout(cardSaveT); cardSaveT = setTimeout(() => kv.set('cards', Object.fromEntries(S.cards)), 800); };
+
+/* ---------- name matching ---------- */
+function norm(s) { return String(s).toLowerCase().replace(/æ/g, 'ae').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^a-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim(); }
+function grams(s) { const t = '^' + s + '$', out = new Set(); for (let i = 0; i < t.length - 2; i++) out.add(t.substr(i, 3)); return [...out]; }
+function lev(a, b) {
+  if (a === b) return 0; const m = a.length, n = b.length; if (!m) return n; if (!n) return m;
+  let prev = new Array(n + 1), cur = new Array(n + 1); for (let j = 0; j <= n; j++) prev[j] = j;
+  for (let i = 1; i <= m; i++) { cur[0] = i; for (let j = 1; j <= n; j++) cur[j] = Math.min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (a.charCodeAt(i - 1) === b.charCodeAt(j - 1) ? 0 : 1)); const t = prev; prev = cur; cur = t; }
+  return prev[n];
+}
+function sim(a, b) { const L = Math.max(a.length, b.length); return L ? 1 - lev(a, b) / L : 0; }
+function buildIndex(list) {
+  const entries = [], tri = new Map(), exact = new Map();
+  const add = (name, key) => {
+    const n = norm(key); if (!n || exact.has(n)) return;
+    const id = entries.length; entries.push({ name, norm: n }); exact.set(n, id);
+    for (const g of grams(n)) { let a = tri.get(g); if (!a) { a = []; tri.set(g, a); } a.push(id); }
+  };
+  for (const name of list) { add(name, name); if (name.includes(' // ')) for (const p of name.split(' // ')) add(name, p); }
+  return { entries, tri, exact };
+}
+function lookup(q, k = 5) {
+  const I = S.idx, n = norm(q); if (!I || n.length < 3) return [];
+  const gs = grams(n), cnt = new Map();
+  for (const g of gs) { const a = I.tri.get(g); if (a) for (const id of a) cnt.set(id, (cnt.get(id) || 0) + 1); }
+  const need = Math.max(2, Math.floor(gs.length * 0.35)), cand = [];
+  for (const [id, c] of cnt) if (c >= need) cand.push([id, c]);
+  cand.sort((a, b) => b[1] - a[1]);
+  const out = [];
+  for (const [id] of cand.slice(0, 40)) { const en = I.entries[id]; out.push({ name: en.name, norm: en.norm, sim: sim(n, en.norm) }); }
+  out.sort((a, b) => b.sim - a.sim);
+  const seen = new Set(), fin = [];
+  for (const o of out) { if (seen.has(o.name)) continue; seen.add(o.name); fin.push(o); if (fin.length >= k) break; }
+  return fin;
+}
+function prefixSearch(q, k = 6) {
+  const n = norm(q), out = []; if (!S.idx || n.length < 2) return out;
+  for (const e of S.idx.entries) { if (e.norm.startsWith(n) && !out.includes(e.name)) { out.push(e.name); if (out.length >= k) break; } }
+  return out;
+}
+function matchWords(words, minSim) {
+  let best = null;
+  for (let i = 0; i <= 1; i++) for (let j = 0; j <= 2; j++) {
+    const w = words.slice(i, words.length - j); if (!w.length) continue;
+    const txt = w.join(' '), n = norm(txt); if (n.length < 3 || n.length > 46) continue;
+    const r = lookup(txt, 4); if (!r.length) continue;
+    const top = r[0]; if (top.norm.length <= 4 && top.sim < 1) continue;
+    const score = top.sim - 0.01 * (i + j);
+    if (score >= minSim && (!best || score > best.sim)) best = { name: top.name, sim: score, alts: r.slice(1).map(x => x.name), text: txt };
+  }
+  return best;
+}
+function getLines(data) {
+  if (data.lines && data.lines.length) return data.lines;
+  const out = []; for (const b of data.blocks || []) for (const p of b.paragraphs || []) for (const l of p.lines || []) out.push(l); return out;
+}
+function segmentsOf(line) {
+  const ws = (line.words || []).filter(w => w.text && w.text.trim() && w.bbox);
+  if (!ws.length) return [];
+  ws.sort((a, b) => a.bbox.x0 - b.bbox.x0);
+  const hs = ws.map(w => w.bbox.y1 - w.bbox.y0).sort((a, b) => a - b), h = hs[Math.floor(hs.length / 2)] || 10;
+  const segs = []; let cur = null;
+  for (const w of ws) {
+    if (cur && w.bbox.x0 - cur.x1 <= 0.9 * h) { cur.words.push(w); cur.x1 = Math.max(cur.x1, w.bbox.x1); cur.y0 = Math.min(cur.y0, w.bbox.y0); cur.y1 = Math.max(cur.y1, w.bbox.y1); }
+    else { cur = { words: [w], x0: w.bbox.x0, x1: w.bbox.x1, y0: w.bbox.y0, y1: w.bbox.y1 }; segs.push(cur); }
+  }
+  return segs;
+}
+function detectionsFromData(data, minSim) {
+  const out = [];
+  for (const line of getLines(data)) for (const seg of segmentsOf(line)) {
+    const words = seg.words.map(w => w.text.replace(/[^A-Za-z'\u2019\-,\u00C0-\u017F]/g, '')).filter(Boolean);
+    if (!words.length) continue;
+    const m = matchWords(words, minSim); if (!m) continue;
+    const conf = seg.words.reduce((s, w) => s + (w.confidence || 0), 0) / seg.words.length;
+    out.push({ ...m, conf, bbox: { x0: seg.x0, y0: seg.y0, x1: seg.x1, y1: seg.y1 } });
+  }
+  return out;
+}
+
+/* ---------- image preprocessing + OCR ---------- */
+function boxBlur(g, w, h, r) {
+  const W = w + 1, I = new Uint32Array(W * (h + 1));
+  for (let y = 0; y < h; y++) { let row = 0; for (let x = 0; x < w; x++) { row += g[y * w + x]; I[(y + 1) * W + x + 1] = I[y * W + x + 1] + row; } }
+  const out = new Uint8ClampedArray(w * h);
+  for (let y = 0; y < h; y++) { const y0 = Math.max(0, y - r), y1 = Math.min(h, y + r + 1); for (let x = 0; x < w; x++) { const x0 = Math.max(0, x - r), x1 = Math.min(w, x + r + 1); out[y * w + x] = (I[y1 * W + x1] - I[y0 * W + x1] - I[y1 * W + x0] + I[y0 * W + x0]) / ((x1 - x0) * (y1 - y0)); } }
+  return out;
+}
+function preprocess(src, mode) {
+  const w = src.width, h = src.height, c = document.createElement('canvas'); c.width = w; c.height = h;
+  const ctx = c.getContext('2d'); ctx.drawImage(src, 0, 0);
+  const id = ctx.getImageData(0, 0, w, h), d = id.data, g = new Uint8ClampedArray(w * h);
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) g[j] = 0.299 * d[i] + 0.587 * d[i + 1] + 0.114 * d[i + 2];
+  let out = g;
+  if (mode === 'glare') { const bg = boxBlur(g, w, h, Math.max(8, Math.round(h / 60))); out = new Uint8ClampedArray(w * h); for (let j = 0; j < out.length; j++) out[j] = g[j] - bg[j] + 128; }
+  const hist = new Uint32Array(256); for (let j = 0; j < out.length; j++) hist[out[j]]++;
+  const total = out.length; let acc = 0, lo = 0, hi = 255;
+  for (let v = 0; v < 256; v++) { acc += hist[v]; if (acc >= total * 0.01) { lo = v; break; } }
+  acc = 0; for (let v = 255; v >= 0; v--) { acc += hist[v]; if (acc >= total * 0.01) { hi = v; break; } }
+  const sc = hi > lo ? 255 / (hi - lo) : 1;
+  for (let i = 0, j = 0; i < d.length; i += 4, j++) { const v = Math.max(0, Math.min(255, (out[j] - lo) * sc)); d[i] = d[i + 1] = d[i + 2] = v; d[i + 3] = 255; }
+  ctx.putImageData(id, 0, 0); return c;
+}
+function tileCanvas(src, x, y, w, h, s) {
+  const c = document.createElement('canvas'); c.width = Math.round(w * s); c.height = Math.round(h * s);
+  const ctx = c.getContext('2d'); ctx.imageSmoothingQuality = 'high'; ctx.drawImage(src, x, y, w, h, 0, 0, c.width, c.height); return c;
+}
+function rotateCanvas(src, deg) {
+  const c = document.createElement('canvas'), q = deg % 180 !== 0; c.width = q ? src.height : src.width; c.height = q ? src.width : src.height;
+  const ctx = c.getContext('2d'); ctx.translate(c.width / 2, c.height / 2); ctx.rotate(deg * Math.PI / 180); ctx.drawImage(src, -src.width / 2, -src.height / 2); return c;
+}
+function makeCrop(src, b) {
+  const h = b.y1 - b.y0, x0 = Math.max(0, b.x0 - 0.5 * h), y0 = Math.max(0, b.y0 - 0.6 * h);
+  const w = Math.min(src.width - x0, (b.x1 - b.x0) + h * 4.5), hh = Math.min(src.height - y0, h * 2.4);
+  if (w < 4 || hh < 4) return null;
+  const sc = Math.min(1, 320 / w), c = document.createElement('canvas'); c.width = Math.max(1, Math.round(w * sc)); c.height = Math.max(1, Math.round(hh * sc));
+  c.getContext('2d').drawImage(src, x0, y0, w, hh, 0, 0, c.width, c.height); return c.toDataURL('image/jpeg', 0.7);
+}
+let _worker = null, _lock = Promise.resolve();
+async function getWorker() {
+  if (_worker) return _worker;
+  _worker = await Tesseract.createWorker('eng', 1, {});
+  await _worker.setParameters({ tessedit_pageseg_mode: '11', tessedit_char_whitelist: "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz',- \u00C6\u00E6\u00C9\u00E9\u00E0\u00E1\u00E2\u00FA\u00FB\u00F6\u00FC" });
+  return _worker;
+}
+function recognize(canvas) {
+  const run = async () => { const w = await getWorker(); return (await w.recognize(canvas)).data; };
+  const p = _lock.then(run, run); _lock = p.catch(() => {}); return p;
+}
+async function detectCanvas(canvas, o, onProg) {
+  const W = canvas.width, H = canvas.height, s = o.upscale || 1, tile = o.tile || 1800, ov = Math.round(tile * 0.15), step = tile - ov;
+  const passes = o.glare ? ['normal', 'glare'] : ['normal'], raw = [];
+  const xs = [], ys = []; for (let x = 0; ; x += step) { xs.push(x); if (x + tile >= W) break; } for (let y = 0; ; y += step) { ys.push(y); if (y + tile >= H) break; }
+  const totalSteps = xs.length * ys.length * passes.length; let done = 0;
+  for (const ty of ys) for (const tx of xs) {
+    const tw = Math.min(tile, W - tx), th = Math.min(tile, H - ty); if (tw < 120 || th < 120) { done += passes.length; continue; }
+    const col = tileCanvas(canvas, tx, ty, tw, th, s);
+    for (const pass of passes) {
+      const data = await recognize(preprocess(col, pass));
+      for (const d of detectionsFromData(data, o.minSim || 0.8)) {
+        const bb = d.bbox;
+        raw.push({ ...d, pass, x: tx + (bb.x0 + bb.x1) / 2 / s, y: ty + (bb.y0 + bb.y1) / 2 / s, h: (bb.y1 - bb.y0) / s, crop: o.noCrop ? null : makeCrop(col, bb) });
+      }
+      done++; onProg && onProg(done / totalSteps);
+    }
+  }
+  return dedupe(raw);
+}
+function dedupe(raw) {
+  raw.sort((a, b) => b.sim - a.sim); const kept = [];
+  for (const d of raw) { if (!kept.some(k => k.name === d.name && Math.hypot(k.x - d.x, k.y - d.y) < Math.max(10, 0.8 * Math.min(k.h, d.h)))) kept.push(d); }
+  return kept;
+}
+async function fileToCanvas(file, maxSide) {
+  const bmp = await createImageBitmap(file), sc = Math.min(1, maxSide / Math.max(bmp.width, bmp.height));
+  const c = document.createElement('canvas'); c.width = Math.round(bmp.width * sc); c.height = Math.round(bmp.height * sc);
+  c.getContext('2d').drawImage(bmp, 0, 0, c.width, c.height); if (bmp.close) bmp.close(); return c;
+}
+async function scanPhoto(file, o, onProg) {
+  const img = await fileToCanvas(file, o.maxSide || 3600);
+  const rots = o.autoRotate ? [0, 90, 270, 180] : [0]; let best = [];
+  for (const deg of rots) {
+    const dets = await detectCanvas(deg ? rotateCanvas(img, deg) : img, o, onProg);
+    if (dets.length > best.length) best = dets;
+    if (best.length > 0) break;
+  }
+  return best;
+}
+
+/* ---------- scan review list ---------- */
+function addItem(name, qty, meta) {
+  meta = meta || {};
+  const it = S.scan.items.get(name) || { name, qty: 0, sim: 1, alts: [], crops: [] };
+  it.qty += qty; if (meta.sim !== undefined) it.sim = Math.min(it.sim, meta.sim);
+  if (meta.alts) it.alts = [...new Set([...it.alts, ...meta.alts])].slice(0, 5);
+  if (meta.crop && it.crops.length < 3) it.crops.push(meta.crop);
+  S.scan.items.set(name, it); return it;
+}
+function setLog(t) { $('scanLog').textContent = t; }
+async function ensureIndex() {
+  if (S.idx) return;
+  let c = await kv.get('names');
+  if (!c || Date.now() - c.t > TTL) {
+    setLog('Loading card name list from Scryfall (first time only)...');
+    const r = await fetch(API + '/catalog/card-names', { headers: { Accept: 'application/json' } });
+    if (!r.ok) throw new Error('Scryfall returned ' + r.status);
+    const j = await r.json(); c = { t: Date.now(), list: j.data.filter(n => !n.startsWith('A-')) }; await kv.set('names', c);
+  }
+  S.idx = buildIndex(c.list);
+}
+async function runPhotos(files) {
+  files = [...files]; if (!files.length) return;
+  if (typeof Tesseract === 'undefined') { setLog('The OCR library did not load. Check your connection and reload the page.'); return; }
+  const prog = $('prog'); prog.style.display = ''; prog.value = 0;
+  const log = [];
+  try {
+    await ensureIndex();
+    const o = { glare: $('optGlare').checked, upscale: $('optSmall').checked ? 1.6 : 1, tile: $('optSmall').checked ? 1200 : 1800, autoRotate: $('optRot').checked, minSim: 0.8 };
+    for (let i = 0; i < files.length; i++) {
+      setLog(log.concat(`Reading photo ${i + 1} of ${files.length}... (first run downloads the OCR model)`).join('\n'));
+      try {
+        const dets = await scanPhoto(files[i], o, f => { prog.value = (i + f) / files.length; setLog(log.concat(`Reading photo ${i + 1} of ${files.length}: ${Math.round(f * 100)}%`).join('\n')); });
+        for (const d of dets) addItem(d.name, 1, { sim: d.sim, alts: d.alts, crop: d.crop });
+        log.push(`${files[i].name || 'photo ' + (i + 1)}: ${dets.length} card${dets.length === 1 ? '' : 's'} found${dets.length === 0 ? ' (try Small-text mode or a closer shot)' : ''}`);
+      } catch (e) { log.push(`${files[i].name || 'photo'}: failed (${e.message || e})`); }
+    }
+  } catch (e) { log.push('Error: ' + (e.message || e)); }
+  setLog(log.join('\n')); prog.style.display = 'none'; renderReview();
+}
+
+/* live scan */
+const live = { on: false, busy: false, last: null, empty: 0, stream: null, timer: null };
+async function liveStart() {
+  const msg = t => { $('liveMsg').textContent = t; $('liveMsg').className = 'bad'; };
+  $('liveMsg').className = 'muted'; $('liveMsg').textContent = 'Starting camera...';
+  if (typeof Tesseract === 'undefined') { msg('The OCR library did not load (it comes from the internet). Check your connection and reload the page.'); return; }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    msg('This page is not in a secure context (' + location.protocol + '//), so the browser hides the camera entirely. Serve the file from localhost (see below) or host it on https. "Take photo" still works.'); return;
+  }
+  const tries = [{ video: { facingMode: { ideal: 'environment' }, width: { ideal: 1920 }, height: { ideal: 1080 } }, audio: false }, { video: true, audio: false }];
+  let err = null;
+  for (const c of tries) { try { live.stream = await navigator.mediaDevices.getUserMedia(c); err = null; break; } catch (e) { err = e; if (e.name === 'NotAllowedError' || e.name === 'SecurityError') break; } }
+  if (err) {
+    const hint = { NotAllowedError: 'Permission was denied or dismissed. Click the camera/lock icon in the address bar, allow the camera, and try again. On file:// pages Chrome asks every time.', SecurityError: 'The browser blocked camera access for this page.', NotFoundError: 'No camera was found on this device.', NotReadableError: 'The camera is in use by another app or tab. Close it and try again.', OverconstrainedError: 'The camera rejected the requested settings.' }[err.name] || (err.message || String(err));
+    msg('Camera error (' + (err.name || 'unknown') + '): ' + hint); return;
+  }
+  const v = $('video'); v.srcObject = live.stream; v.style.display = '';
+  try { await v.play(); } catch (e) { liveStop(); msg('Camera opened but the video would not play: ' + (e.message || e)); return; }
+  try { $('liveMsg').className = 'muted'; $('liveMsg').textContent = 'Loading card name list...'; await ensureIndex(); }
+  catch (e) { liveStop(); msg('Camera works, but the card name list could not be loaded from Scryfall: ' + (e.message || e)); return; }
+  live.on = true; live.last = null; live.empty = 0; $('liveStart').style.display = 'none'; $('liveStop').style.display = '';
+  $('liveMsg').className = 'muted'; $('liveMsg').textContent = 'Scanning... show one card at a time. (The first scan downloads the OCR model.)'; liveLoop();
+}
+function liveStop() {
+  live.on = false; clearTimeout(live.timer); if (live.stream) live.stream.getTracks().forEach(t => t.stop());
+  $('video').style.display = 'none'; $('liveStart').style.display = ''; $('liveStop').style.display = 'none'; renderReview();
+}
+async function liveLoop() {
+  if (!live.on) return;
+  if (!live.busy) {
+    live.busy = true;
+    try {
+      const v = $('video');
+      if (v.videoWidth) {
+        const sc = Math.min(1, 1600 / v.videoWidth), c = document.createElement('canvas'); c.width = Math.round(v.videoWidth * sc); c.height = Math.round(v.videoHeight * sc);
+        c.getContext('2d').drawImage(v, 0, 0, c.width, c.height);
+        const dets = await detectCanvas(c, { tile: 2000, glare: $('liveGlare').checked, minSim: 0.88 });
+        const best = dets.sort((a, b) => b.sim - a.sim)[0];
+        if (best && best.sim >= 0.9) {
+          live.empty = 0;
+          if (best.name !== live.last) { live.last = best.name; addItem(best.name, 1, { sim: best.sim, alts: best.alts, crop: best.crop }); if (navigator.vibrate) navigator.vibrate(40); renderReview(); $('liveMsg').textContent = 'Added: ' + best.name + ' (' + S.scan.items.get(best.name).qty + ')'; }
+        } else if (++live.empty >= 2) live.last = null;
+      }
+    } catch (e) { $('liveMsg').textContent = 'Scan error: ' + (e.message || e); }
+    live.busy = false;
+  }
+  if (live.on) live.timer = setTimeout(liveLoop, 200);
+}
+
+/* ---------- Scryfall card data ---------- */
+function trim(c) {
+  const faces = c.card_faces || [], f0 = faces[0] || {};
+  const imgsOf = o => o ? { small: o.small || o.normal, png: o.png || o.large || o.normal } : null;
+  let imgs = c.image_uris ? [imgsOf(c.image_uris)] : faces.map(f => imgsOf(f.image_uris)).filter(Boolean);
+  return {
+    t: Date.now(), name: c.name, mana_cost: c.mana_cost != null && c.mana_cost !== '' ? c.mana_cost : (f0.mana_cost || ''), cmc: c.cmc || 0,
+    type_line: c.type_line || f0.type_line || '', text: c.oracle_text != null ? c.oracle_text : faces.map(f => f.oracle_text || '').join('\n'),
+    ci: c.color_identity || [], colors: c.colors || f0.colors || [], keywords: c.keywords || [], produced: c.produced_mana || [],
+    gc: !!c.game_changer, usd: (c.prices && (c.prices.usd || c.prices.usd_foil)) || null, legal: c.legalities || {}, imgs, layout: c.layout, uri: c.scryfall_uri
+  };
+}
+async function ensureCards(names, onProg) {
+  const need = [...new Set(names)].filter(n => { const c = S.cards.get(n); return !c || Date.now() - c.t > TTL; }), missing = [];
+  for (let i = 0; i < need.length; i += 75) {
+    const batch = need.slice(i, i + 75); onProg && onProg(i, need.length);
+    const res = await fetch(API + '/cards/collection', { method: 'POST', headers: { 'Content-Type': 'application/json', Accept: 'application/json' }, body: JSON.stringify({ identifiers: batch.map(name => ({ name })) }) });
+    if (!res.ok) throw new Error('Scryfall returned ' + res.status);
+    const j = await res.json(), by = new Map();
+    for (const c of j.data) { by.set(c.name.toLowerCase(), c); if (c.name.includes(' // ')) for (const p of c.name.split(' // ')) if (!by.has(p.toLowerCase())) by.set(p.toLowerCase(), c); }
+    for (const n of batch) { const c = by.get(n.toLowerCase()); if (c) { const t = trim(c); S.cards.set(n, t); S.cards.set(t.name, t); } else missing.push(n); }
+    await sleep(110);
+  }
+  persistCardsSoon(); return missing;
+}
+
+/* ---------- decklist text ---------- */
+function parseDeckText(text) {
+  const out = []; let board = 'main';
+  for (const raw of text.split(/\r?\n/)) {
+    let line = raw.trim(); if (!line || line.startsWith('//') || line.startsWith('#')) continue;
+    const h = line.replace(/:$/, '').toLowerCase();
+    if (/^(commander|command zone)$/.test(h)) { board = 'cmdr'; continue; }
+    if (/^(deck|main|mainboard|main deck)$/.test(h)) { board = 'main'; continue; }
+    if (/^(sideboard|side|maybeboard|maybe|considering|companion)$/.test(h)) { board = 'side'; continue; }
+    let b = board; if (/^SB:\s*/i.test(line)) { b = 'side'; line = line.replace(/^SB:\s*/i, ''); }
+    const m = line.match(/^(\d+)\s*x?\s+(.+)$/i); let qty = 1, rest = line; if (m) { qty = +m[1]; rest = m[2]; }
+    rest = rest.replace(/\s*\*[A-Za-z]+\*\s*$/, '').replace(/\s*\[[^\]]*\]\s*$/, '').replace(/\s+\([A-Za-z0-9]{2,6}\)\s*[A-Za-z0-9\u2605-]*\s*$/, '').trim();
+    if (rest) out.push({ name: rest, qty, board: b });
+  }
+  return out;
+}
+function deckToText(deck) {
+  const sec = (title, b) => { const l = deck.cards.filter(c => c.board === b); return l.length ? title + '\n' + l.map(c => c.qty + ' ' + c.name).join('\n') + '\n' : ''; };
+  return [sec('Commander', 'cmdr'), sec('Deck', 'main'), sec('Sideboard', 'side')].filter(Boolean).join('\n');
+}
+async function importText() {
+  const entries = parseDeckText($('deckText').value);
+  if (!entries.length) { setLog('Nothing to import.'); return; }
+  setLog('Looking up ' + entries.length + ' lines on Scryfall...');
+  try {
+    const missing = await ensureCards(entries.map(e => e.name));
+    for (const e of entries) { const d = S.cards.get(e.name); if (d) { const it = addItem(d.name, e.qty, { sim: 1 }); if (e.board !== 'main') it.board = e.board; } }
+    setLog('Imported ' + (entries.length - missing.length) + ' lines.' + (missing.length ? '\nNot found on Scryfall: ' + missing.join(', ') : ''));
+    $('deckText').value = ''; renderReview();
+  } catch (e) { setLog('Import failed: ' + (e.message || e)); }
+}
+function renderReview() {
+  const items = [...S.scan.items.values()];
+  $('reviewPanel').style.display = items.length ? '' : 'none'; if (!items.length) return;
+  items.sort((a, b) => a.sim - b.sim || a.name.localeCompare(b.name));
+  const total = items.reduce((s, i) => s + i.qty, 0), chk = items.filter(i => i.sim < 0.93).length;
+  $('reviewSummary').textContent = `${total} cards, ${items.length} unique. ${chk ? chk + ' to double-check (listed first).' : 'All high confidence.'}`;
+  const list = $('reviewList'); list.textContent = '';
+  for (const it of items) {
+    const d = S.cards.get(it.name), small = d && d.imgs && d.imgs[0] && d.imgs[0].small;
+    const alt = it.alts.length ? el('select', { onchange: ev => { if (ev.target.value) swapItem(it.name, ev.target.value); } }, el('option', { value: '' }, 'Wrong? pick...'), it.alts.map(a => el('option', { value: a }, a))) : null;
+    list.append(el('div', { class: 'rrow' },
+      it.crops[0] ? el('img', { class: 'crop', src: it.crops[0] }) : null,
+      small ? el('img', { class: 'card', src: small, loading: 'lazy' }) : null,
+      el('div', { class: 'rname' }, el('div', {}, it.name), el('span', { class: 'badge ' + (it.sim >= 0.93 ? 'ok' : 'chk') }, it.sim >= 0.99 ? 'exact' : Math.round(it.sim * 100) + '% match'), alt),
+      el('span', { class: 'stepper' }, el('button', { class: 'sec sm', onclick: () => stepItem(it.name, -1) }, '-'), el('b', {}, it.qty), el('button', { class: 'sec sm', onclick: () => stepItem(it.name, 1) }, '+')),
+      el('button', { class: 'danger sm', onclick: () => { S.scan.items.delete(it.name); renderReview(); } }, 'Remove')));
+  }
+  const missing = items.filter(i => !S.cards.get(i.name)).map(i => i.name);
+  if (missing.length && !renderReview.loading) {
+    renderReview.loading = true;
+    ensureCards(missing).then(() => { renderReview.loading = false; renderReview(); }).catch(() => { renderReview.loading = false; });
+  }
+}
+function stepItem(name, d) { const it = S.scan.items.get(name); if (!it) return; it.qty += d; if (it.qty <= 0) S.scan.items.delete(name); renderReview(); }
+function swapItem(from, to) { const it = S.scan.items.get(from); if (!it) return; S.scan.items.delete(from); const n = addItem(to, it.qty, { sim: 1, alts: [from] }); it.crops.forEach(c => { if (n.crops.length < 3) n.crops.push(c); }); renderReview(); }
+let addT;
+function onAddInput() {
+  clearTimeout(addT); const q = $('addBox').value;
+  addT = setTimeout(async () => {
+    const box = $('addSug'); box.textContent = ''; if (q.trim().length < 2) return;
+    try { await ensureIndex(); } catch (e) { box.textContent = 'Name list unavailable: ' + e.message; return; }
+    const names = [...new Set([...prefixSearch(q, 5), ...lookup(q, 5).filter(r => r.sim > 0.5).map(r => r.name)])].slice(0, 8);
+    if (names.length) box.append(el('div', { class: 'sug' }, names.map(n => el('div', { onclick: () => { addItem(n, 1, { sim: 1 }); $('addBox').value = ''; box.textContent = ''; renderReview(); } }, n))));
+  }, 200);
+}
+async function saveScan() {
+  const items = [...S.scan.items.values()]; if (!items.length) return;
+  const name = $('saveName').value.trim() || 'Deck ' + new Date().toLocaleDateString();
+  const deck = { id: 'd' + Date.now().toString(36), name, format: 'auto', created: Date.now(), cards: items.map(i => ({ name: i.name, qty: i.qty, board: i.board || 'main' })) };
+  S.decks.push(deck); await persistDecks(); S.scan.items.clear(); $('saveName').value = ''; renderReview(); renderLibrary();
+  if (!S.persist) { try { download('mtg-library-backup.json', JSON.stringify({ v: 1, decks: S.decks }), 'application/json'); } catch (e) {} }
+  openDeck(deck.id);
+}
+
+/* ---------- library ---------- */
+const getDeck = () => S.decks.find(d => d.id === S.cur);
+function renderLibrary() {
+  const box = $('libList'); box.textContent = '';
+  if (!S.decks.length) { box.append(el('div', { class: 'muted' }, 'No decks yet. Scan or import one first.')); return; }
+  for (const d of S.decks.slice().sort((a, b) => (b.updated || b.created) - (a.updated || a.created))) {
+    const n = d.cards.filter(c => c.board !== 'side').reduce((s, c) => s + c.qty, 0);
+    box.append(el('div', { class: 'crow' },
+      el('div', { class: 'nm' }, el('b', {}, d.name), el('div', { class: 'muted' }, n + ' cards')),
+      el('button', { class: 'sm', onclick: () => openDeck(d.id) }, 'Open'),
+      el('button', { class: 'sec sm', onclick: async () => { const c = JSON.parse(JSON.stringify(d)); c.id = 'd' + Date.now().toString(36); c.name += ' (copy)'; S.decks.push(c); await persistDecks(); renderLibrary(); } }, 'Copy'),
+      el('button', { class: 'danger sm', onclick: async () => { if (confirm('Delete "' + d.name + '"?')) { S.decks = S.decks.filter(x => x.id !== d.id); if (S.cur === d.id) S.cur = null; await persistDecks(); renderLibrary(); } } }, 'Delete')));
+  }
+}
+function download(name, text, type) { const a = el('a', { href: URL.createObjectURL(new Blob([text], { type: type || 'text/plain' })), download: name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
+function safeName(s) { return (s || '').trim().replace(/[\\/:*?"<>|\x00-\x1f]/g, '').replace(/\s+/g, ' ').replace(/^\.+/, '').trim(); }
+async function copyText(t) {
+  try { await navigator.clipboard.writeText(t); return true; } catch (e) {
+    const ta = el('textarea', { style: 'position:fixed;opacity:0' }); ta.value = t; document.body.append(ta); ta.select();
+    let ok = false; try { ok = document.execCommand('copy'); } catch (e2) {} ta.remove(); return ok;
+  }
+}
+
+/* ---------- analysis ---------- */
+const front = t => (t || '').split(' // ')[0];
+const isLand = d => /\bLand\b/.test(front(d.type_line));
+const isCreature = d => /\bCreature\b/.test(front(d.type_line));
+function groupOf(d) {
+  const t = front(d.type_line);
+  for (const g of ['Land', 'Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment']) if (new RegExp('\\b' + g + '\\b').test(t)) return g;
+  return 'Other';
+}
+function pipsOf(cost) {
+  const p = { W: 0, U: 0, B: 0, R: 0, G: 0 };
+  for (const m of (cost || '').matchAll(/\{([^}]+)\}/g)) for (const part of m[1].split('/')) if (p[part] !== undefined) p[part]++;
+  return p;
+}
+const LAND_SEARCH = /search your library for (a |an |up to \w+ )?((basic )?(land|forest|plains|island|swamp|mountain)|[\w\- ]*land cards?)/;
+const MLD_NAMES = new Set(['Armageddon', 'Ravages of War', 'Catastrophe', 'Jokulhaups', 'Obliterate', 'Decree of Annihilation', 'Devastation', 'Ruination', 'Apocalypse', 'Sunder', 'Boom // Bust', 'Tectonic Break', 'Cataclysm', 'Impending Disaster', 'Wildfire', 'Thoughts of Ruin', 'Global Ruin', 'Acid Rain', 'Death Cloud', 'Epicenter', 'Balancing Act']);
+const TAGS = [
+  ['ramp', 'Ramp', (x, d) => !isLand(d) && (/add (\{[wubrgc]\}|one|two|three|x|an amount|[\w ]*mana)|treasure token/.test(x) && /\badd\b/.test(x) || LAND_SEARCH.test(x) || /put (a|up to \w+) land cards? (from your (hand|library) )?onto the battlefield/.test(x) || /treasure token/.test(x))],
+  ['draw', 'Card advantage', x => /draw (a|an|one|two|three|four|x|\w+) cards?|investigate|you may play (an additional|lands from)|exile the top [\w ]* you may (play|cast)|look at the top [\w ]* put [\w ]* into your hand/.test(x)],
+  ['removal', 'Removal / interaction', x => /(destroy|exile) target|target [\w ]*(creature|permanent|artifact|enchantment|planeswalker)[\w ,]* gets -\d|deals? \d+ damage to (any target|target)|return target [\w ,]* to (its owner's|their owner's) hand|fights? (up to one )?target|-x\/-x/.test(x)],
+  ['wipe', 'Board wipes', x => /(destroy|exile) all (creatures|nonland permanents|artifacts|enchantments|permanents|other)|(each|all) creatures? (gets?|get) -|deals? \d+ damage to each creature|return all (creatures|nonland permanents)|each player sacrifices (all|\w+) (creatures|permanents)/.test(x)],
+  ['counter', 'Counterspells', x => /counter target (spell|activated|triggered|noncreature|creature spell)|counter that spell|counter the spell/.test(x)],
+  ['tutor', 'Tutors', x => /search your library for/.test(x) && !LAND_SEARCH.test(x)],
+  ['protect', 'Protection', x => /(gains?|have|has) (hexproof|indestructible|protection from|shroud)|phase out|phases out|counter target spell or ability that targets/.test(x)],
+  ['recursion', 'Recursion', (x, d) => /return [\w ,]* from (your|a) graveyard|from your graveyard (onto|to) the battlefield|cast [\w ,]* from your graveyard/.test(x) || (d.keywords || []).some(k => /flashback|unearth|escape|embalm|eternalize|disturb|encore|persist|undying/i.test(k))],
+  ['selfmill', 'Self-mill / discard outlets', x => /(mill|mills) (\w+) cards?|put the top \w+ cards? of your library into your graveyard|discard (a|your hand|any number)/.test(x) && !/target (player|opponent) mills/.test(x)],
+  ['tokens', 'Token makers', x => /create [^.]*token/.test(x.replace(/[^.]*(treasure|clue|food|blood|map|powerstone|junk|gold) tokens?[^.]*\./g, '')) || /populate|amass|incubate|fabricate|afterlife|myriad/.test(x)],
+  ['sacOutlet', 'Sacrifice outlets', x => /sacrifice (a|another|an|two|x) (creature|artifact|permanent|nontoken)[^.:]*:|, sacrifice (a|another|an) (creature|artifact|permanent)/.test(x) || /as an additional cost to cast this spell, sacrifice/.test(x)],
+  ['dies', 'Death triggers', x => /whenever [\w ,]*dies|when [\w ,]*dies|put into a graveyard from the battlefield/.test(x)],
+  ['landfall', 'Landfall', x => /landfall|whenever a land (enters|you control enters)/.test(x)],
+  ['spellTrig', 'Spell-cast triggers', (x, d) => /whenever you cast (an?|your) (instant|sorcery|noncreature|instant or sorcery)|magecraft/.test(x) || (d.keywords || []).includes('Prowess')],
+  ['counters', '+1/+1 counter synergy', x => /\+1\/\+1 counters?|proliferate|bolster|adapt|evolve|support/.test(x)],
+  ['voltron', 'Equipment / Auras', (x, d) => /\b(Equipment|Aura)\b/.test(front(d.type_line)) || /\battach\b|\bequip\b/.test(x)],
+  ['artSyn', 'Artifact synergy', x => /artifacts? you control|whenever an artifact|artifact spells?|affinity for artifacts|metalcraft|improvise/.test(x)],
+  ['ench', 'Enchantment synergy', x => /whenever an enchantment|enchantments? you control|constellation|enchantment spells?/.test(x)],
+  ['stax', 'Stax / tax effects', x => /(players|opponents) can't|each (opponent|player) skips|doesn't untap|don't untap|spells (your opponents cast )?cost \{?\d\}? more|can't cast spells|skip (your|their|each) (untap|draw)/.test(x)],
+  ['aggroKw', 'Aggressive keywords', (x, d) => (d.keywords || []).some(k => /^(Haste|First strike|Double strike|Menace|Trample|Flying)$/.test(k)) || /attacks each combat/.test(x)],
+  ['winCon', 'Alternate win / drain finishers', x => /you win the game|loses? the game|each opponent loses \w+ life|extra turn/.test(x) && !/can't win the game/.test(x)],
+  ['extraTurn', 'Extra turns', x => /takes? (an|one|two|\d+) extra turns?|extra turn after this one/.test(x)],
+  ['mld', 'Mass land denial', (x, d) => MLD_NAMES.has(d.name) || /(destroy|exile|sacrifice) (all|each|every) lands?|each player sacrifices (all|\w+) lands|lands don't untap|each player [\w ]* destroys? \w+ lands/.test(x)]
+];
+function textOf(d) { return (d.text || '').toLowerCase().replace(/\([^)]*\)/g, ''); }
+function analyze(deck) {
+  const rows = deck.cards.map(c => ({ c, d: S.cards.get(c.name) })).filter(r => r.d);
+  const missing = deck.cards.filter(c => !S.cards.get(c.name)).map(c => c.name);
+  const pool = rows.filter(r => r.c.board !== 'side');
+  const A = { rows, missing, pool, total: 0, lands: 0, nonland: 0, creatures: 0, cmcSum: 0, curve: Array.from({ length: 8 }, () => ({ cr: 0, other: 0 })), groups: {}, pips: { W: 0, U: 0, B: 0, R: 0, G: 0 }, sources: { W: 0, U: 0, B: 0, R: 0, G: 0, C: 0 }, tags: {}, tagCards: {}, ci: new Set(), price: 0, priceMissing: 0, gc: [], subtypes: {}, haste: 0 };
+  for (const t of TAGS) { A.tags[t[0]] = 0; A.tagCards[t[0]] = []; }
+  for (const { c, d } of pool) {
+    const q = c.qty; A.total += q; d.ci.forEach(x => A.ci.add(x));
+    const g = groupOf(d); A.groups[g] = (A.groups[g] || 0) + q;
+    if (d.usd) A.price += parseFloat(d.usd) * q; else A.priceMissing += q;
+    if (d.gc) A.gc.push(c.name);
+    for (const col of d.produced) if (A.sources[col] !== undefined && (isLand(d) || /Artifact|Creature/.test(front(d.type_line)))) A.sources[col] += q;
+    if (isLand(d)) { A.lands += q; continue; }
+    A.nonland += q; A.cmcSum += d.cmc * q;
+    const b = A.curve[Math.min(7, Math.floor(d.cmc))]; if (isCreature(d)) { b.cr += q; A.creatures += q; } else b.other += q;
+    const p = pipsOf(d.mana_cost); for (const k in p) A.pips[k] += p[k] * q;
+    const x = textOf(d);
+    for (const [key, , test] of TAGS) if (test(x, d)) { A.tags[key] += q; A.tagCards[key].push(c.name + (q > 1 ? ' x' + q : '')); }
+    if (isCreature(d) && !(d.keywords || []).includes('Changeling')) { const st = front(d.type_line).split('—')[1]; if (st) for (const s of st.trim().split(/\s+/)) A.subtypes[s] = (A.subtypes[s] || 0) + q; }
+  }
+  A.avgCmc = A.nonland ? A.cmcSum / A.nonland : 0;
+  A.archetypes = archetypes(A);
+  return A;
+}
+function archetypes(A) {
+  const n = Math.max(1, A.nonland), T = A.tags, sh = k => (T[k] || 0) / n, crShare = A.creatures / n, out = [];
+  const top = Object.entries(A.subtypes).sort((a, b) => b[1] - a[1])[0];
+  if (top && A.creatures >= 8) { const share = top[1] / A.creatures; if (share >= (top[0] === 'Human' ? 0.4 : 0.3)) out.push({ name: 'Tribal: ' + top[0], score: Math.min(100, share * 180), why: `${top[1]} of ${A.creatures} creatures are ${top[0]}s` }); }
+  const add = (name, score, why) => out.push({ name, score: Math.min(100, score), why });
+  add('Aristocrats / sacrifice', (sh('sacOutlet') + sh('dies')) * 350, `${T.sacOutlet} sacrifice outlets or fodder, ${T.dies} death triggers`);
+  add('Tokens / go-wide', sh('tokens') * 400, `${T.tokens} token makers`);
+  add('Spellslinger', ((A.groups.Instant || 0) + (A.groups.Sorcery || 0)) / n * 80 + sh('spellTrig') * 600, `${(A.groups.Instant || 0) + (A.groups.Sorcery || 0)} instants/sorceries, ${T.spellTrig} spell-cast payoffs`);
+  add('+1/+1 counters', sh('counters') * 400, `${T.counters} counter-related cards`);
+  add('Landfall / lands matter', sh('landfall') * 500, `${T.landfall} landfall cards`);
+  add('Voltron / equipment', sh('voltron') * 500, `${T.voltron} equipment/aura/attach cards`);
+  add('Reanimator / graveyard', (sh('recursion') + sh('selfmill')) * 350, `${T.recursion} recursion, ${T.selfmill} self-mill/discard`);
+  add('Artifacts', sh('artSyn') * 400 + (A.groups.Artifact || 0) / n * 80, `${T.artSyn} artifact payoffs, ${A.groups.Artifact || 0} artifacts`);
+  add('Enchantress', sh('ench') * 500, `${T.ench} enchantment payoffs`);
+  add('Stax / tax', sh('stax') * 600, `${T.stax} stax or tax effects`);
+  add('Control', (sh('counter') * 3 + sh('wipe') * 4 + sh('removal') * 1.5 + sh('draw') * 1.5) * 100 * (crShare < 0.3 ? 1 : 0.6), `${T.counter} counters, ${T.wipe} wipes, ${T.removal} removal, ${T.draw} card advantage, ${A.creatures} creatures`);
+  add('Aggro', 100 * (0.4 * (A.avgCmc <= 2.5 ? 1 : A.avgCmc <= 3 ? 0.5 : 0) + 0.4 * Math.min(1, crShare / 0.5) + 0.2 * Math.min(1, sh('aggroKw') / 0.25)) * (A.creatures >= 12 ? 1 : 0.5), `avg MV ${A.avgCmc.toFixed(2)}, ${A.creatures} creatures, ${T.aggroKw} aggressive keywords`);
+  add('Combo / tutor-driven', (sh('tutor') + sh('winCon')) * 500, `${T.tutor} tutors, ${T.winCon} win-the-game/drain/extra-turn cards`);
+  add('Ramp / big spells', sh('ramp') * 250 + (A.avgCmc >= 3.5 ? 20 : 0), `${T.ramp} ramp pieces, avg MV ${A.avgCmc.toFixed(2)}`);
+  return out.filter(o => o.score >= 30).sort((a, b) => b.score - a.score).slice(0, 3);
+}
+const FORMATS = ['commander', 'standard', 'pioneer', 'modern', 'legacy', 'vintage', 'pauper', 'brawl', 'historic', 'timeless', 'oathbreaker'];
+function formatOf(deck, A) {
+  if (deck.format && deck.format !== 'auto') return deck.format;
+  return (A.total >= 98 && A.total <= 101) || deck.cards.some(c => c.board === 'cmdr') ? 'commander' : null;
+}
+function legalityIssues(deck, A, fmt) {
+  const out = [];
+  for (const { c, d } of A.pool) { const st = d.legal && d.legal[fmt]; if (st && st !== 'legal' && st !== 'restricted') out.push(`${c.name}: ${st.replace('_', ' ')} in ${fmt}`); }
+  const single = ['commander', 'brawl', 'oathbreaker'].includes(fmt);
+  if (single) {
+    for (const { c, d } of A.pool) if (c.qty > 1 && !/\bBasic\b/.test(front(d.type_line)) && !/any number of cards named|up to \w+ cards named/i.test(d.text || '')) out.push(`${c.name}: ${c.qty} copies in a singleton format`);
+    const want = fmt === 'commander' ? 100 : fmt === 'brawl' ? 60 : 0;
+    if (want && A.total !== want) out.push(`Deck has ${A.total} cards (${fmt} expects ${want}, including the commander)`);
+    const cm = A.pool.filter(r => r.c.board === 'cmdr');
+    if (cm.length) { const ci = new Set(cm.flatMap(r => r.d.ci)); for (const { c, d } of A.pool) if (c.board !== 'cmdr' && d.ci.some(x => !ci.has(x))) out.push(`${c.name}: outside commander color identity`); }
+    else out.push('No commander selected');
+  } else if (A.total < 60) out.push(`Main deck has ${A.total} cards (60 minimum in most constructed formats)`);
+  return out;
+}
+function bracketEstimate(A) {
+  const gc = A.gc.length, mld = A.tagCards.mld, et = A.tags.extraTurn, reasons = []; let floor = 2;
+  if (gc >= 4) { floor = 4; reasons.push(`${gc} Game Changers (Bracket 3 allows at most 3)`); }
+  else if (gc >= 1) { floor = 3; reasons.push(`${gc} Game Changer${gc > 1 ? 's' : ''} (not allowed in Bracket 1-2, up to 3 in Bracket 3)`); }
+  else reasons.push('No Game Changers');
+  if (mld.length) { floor = 4; reasons.push('Possible mass land denial: ' + mld.join(', ') + ' (not allowed in Brackets 1-3; verify these)'); }
+  if (et >= 3) { floor = Math.max(floor, 3); reasons.push(`${et} extra-turn cards. Chaining extra turns is Bracket 4 territory.`); }
+  else if (et) reasons.push(`${et} extra-turn card${et > 1 ? 's' : ''} (fine unless chained)`);
+  return { floor, reasons, label: { 2: 'Bracket 2 (Core) or lower, from card contents', 3: 'Bracket 3 (Upgraded) or higher', 4: 'Bracket 4 (Optimized) or higher' }[floor] };
+}
+function hyper(N, K, n) { const c = (a, b) => { let r = 1; for (let i = 1; i <= b; i++) r = r * (a - b + i) / i; return r; }; const out = []; for (let k = 0; k <= n; k++) out.push(k > K || n - k > N - K ? 0 : c(K, k) * c(N - K, n - k) / c(N, n)); return out; }
+
+/* ---------- deck view ---------- */
+async function openDeck(id) {
+  S.cur = id; showTab('deck'); const deck = getDeck(); if (!deck) return;
+  const body = $('deckBody'); body.textContent = ''; body.append(el('div', { class: 'panel muted', id: 'deckLoad' }, 'Loading card data...'));
+  try { await ensureCards(deck.cards.map(c => c.name), (i, n) => { $('deckLoad').textContent = `Loading card data ${i}/${n}...`; }); }
+  catch (e) { body.append(el('div', { class: 'panel bad' }, 'Could not reach Scryfall: ' + (e.message || e) + '. Showing cached data only.')); }
+  renderDeck(); renderPrintInfo();
+}
+function colorChips(set) { const arr = ['W', 'U', 'B', 'R', 'G'].filter(c => set.has ? set.has(c) : set.includes(c)); return arr.length ? arr.map(c => el('span', { class: 'pip p' + c }, c)) : [el('span', { class: 'pip pC' }, 'C')]; }
+function panel(title, ...kids) { return el('div', { class: 'panel' }, title ? el('h2', {}, title) : null, ...kids); }
+function renderDeck() {
+  const deck = getDeck(), body = $('deckBody'); if (!deck) return;
+  const A = analyze(deck), fmt = formatOf(deck, A); body.textContent = '';
+  const upd = async () => { deck.updated = Date.now(); await persistDecks(); renderDeck(); renderPrintInfo(); };
+  const cmdrOpts = A.rows.filter(r => /Legendary/.test(front(r.d.type_line)) && /Creature|Planeswalker/.test(front(r.d.type_line)) || /can be your commander/i.test(r.d.text || ''));
+  body.append(panel('',
+    el('input', { type: 'text', value: deck.name, style: 'width:100%;font-size:18px;font-weight:700', onchange: ev => { deck.name = ev.target.value.trim() || deck.name; upd(); } }),
+    el('div', { class: 'row' },
+      el('label', {}, 'Format ', el('select', { onchange: ev => { deck.format = ev.target.value; upd(); } }, el('option', { value: 'auto' }, 'Auto' + (fmt && deck.format === 'auto' ? ' (' + fmt + ')' : '')), FORMATS.map(f => el('option', { value: f, selected: deck.format === f }, f)))),
+      el('label', {}, 'Commander ', el('select', { onchange: ev => { for (const c of deck.cards) if (c.board === 'cmdr') c.board = 'main'; const t = deck.cards.find(c => c.name === ev.target.value); if (t) t.board = 'cmdr'; upd(); } }, el('option', { value: '' }, 'None'), cmdrOpts.map(r => el('option', { value: r.c.name, selected: r.c.board === 'cmdr' }, r.c.name)))),
+      el('button', { class: 'sec sm', onclick: async ev => { ev.target.disabled = true; ev.target.textContent = 'Refreshing...'; for (const c of deck.cards) S.cards.delete(c.name); try { await ensureCards(deck.cards.map(c => c.name)); } catch (e) {} renderDeck(); } }, 'Refresh card data'))));
+  if (A.missing.length) body.append(panel('', el('div', { class: 'bad' }, 'Not found on Scryfall (ignored in analysis): ' + A.missing.join(', '))));
+
+  body.append(panel('Overview',
+    el('div', { class: 'stats' }, [[A.total, 'cards'], [A.lands, 'lands'], [A.nonland, 'spells'], [A.creatures, 'creatures'], [A.avgCmc.toFixed(2), 'avg mana value'], ['$' + A.price.toFixed(2), 'est. value' + (A.priceMissing ? ' (' + A.priceMissing + ' unpriced)' : '')]].map(([v, l]) => el('div', { class: 'stat' }, el('b', {}, v), el('span', {}, l)))),
+    el('h3', {}, 'Color identity'), el('div', {}, colorChips(A.ci))));
+
+  const maxBar = Math.max(1, ...A.curve.map(b => b.cr + b.other));
+  body.append(panel('Mana curve', el('div', { class: 'curve' }, A.curve.map((b, i) => el('div', { class: 'col' }, el('div', { class: 'cv' }, b.cr + b.other || ''), el('div', { class: 'bar', style: `height:${(b.other / maxBar) * 100}%;background:#8e7cc3` }), el('div', { class: 'bar', style: `height:${(b.cr / maxBar) * 100}%;background:var(--accent)` }), el('div', { class: 'cl' }, i === 7 ? '7+' : i)))),
+    el('div', { class: 'muted' }, 'Blue = creatures, purple = everything else (lands excluded).'),
+    el('h3', {}, 'Colored pips vs mana sources'),
+    el('table', {}, el('tr', {}, el('th', {}, 'Color'), el('th', {}, 'Pips'), el('th', {}, 'Sources')), ['W', 'U', 'B', 'R', 'G'].filter(c => A.pips[c] || A.sources[c]).map(c => el('tr', {}, el('td', {}, el('span', { class: 'pip p' + c }, c)), el('td', {}, A.pips[c]), el('td', {}, A.sources[c])))),
+    el('div', { class: 'muted' }, 'Sources count lands, mana rocks and mana creatures that can make that color.'),
+    fmt === 'commander' ? el('div', { class: 'muted' }, `${A.lands} lands (a common Commander range is about 35-38 lands plus ramp).`) : null));
+
+  const tagRows = TAGS.filter(t => !['aggroKw', 'winCon', 'mld', 'extraTurn'].includes(t[0]) && A.tags[t[0]]).map(t => [t[1], A.tags[t[0]], A.tagCards[t[0]]]);
+  body.append(panel('Strategy',
+    el('h3', {}, 'Archetype guess'),
+    A.archetypes.length ? A.archetypes.map(a => el('div', { style: 'margin-bottom:6px' }, el('b', {}, a.name), ' ', el('span', { class: 'badge' }, Math.round(a.score) + '/100'), el('div', { class: 'muted' }, a.why))) : el('div', {}, 'Midrange / good-stuff (no strong signal).'),
+    el('div', { class: 'muted' }, 'This comes from keyword patterns in card text, not from play data. Treat it as a starting point.'),
+    el('h3', {}, 'What the deck does'),
+    tagRows.map(([label, n, names]) => el('details', {}, el('summary', {}, `${label}: ${n}`), el('div', { class: 'muted' }, names.join(', ')))),
+    fmt === 'commander' ? el('div', { class: 'muted', style: 'margin-top:8px' }, 'Common Commander benchmarks: roughly 10+ ramp, 10+ card advantage, 5+ removal, 2+ board wipes. Counts come from text matching and will miss some cards.') : null));
+
+  if (fmt === 'commander') {
+    const be = bracketEstimate(A);
+    body.append(panel('Commander Bracket check',
+      el('div', {}, el('b', {}, be.label)),
+      el('h3', {}, 'Game Changers (' + A.gc.length + ')'),
+      A.gc.length ? el('div', {}, A.gc.map(n => el('span', { class: 'chip gc' }, n))) : el('div', { class: 'good' }, 'None in this list.'),
+      el('div', { class: 'muted' }, 'Flagged by Scryfall\'s game_changer field from Wizards\' list (53 cards as of the Feb 9, 2026 update). If Wizards updates it, use Refresh card data.'),
+      el('h3', {}, 'Why'), el('ul', {}, be.reasons.map(r => el('li', {}, r))),
+      el('div', { class: 'warn' }, 'Not checked: two-card infinite combos (not allowed in Brackets 1-2, and only late in Bracket 3). Check them on Commander Spellbook with the button below.'),
+      el('div', { class: 'muted' }, 'This is a floor from card contents. Brackets also describe how the deck plays and what the table expects, so talk it through before the game. Bracket 1 and 5 are about intent (theme or cEDH), not card lists.'),
+      el('div', { class: 'row' }, el('button', { class: 'sec', onclick: async ev => { const ok = await copyText(deckToText(deck)); ev.target.textContent = ok ? 'Decklist copied, opening Spellbook...' : 'Open Spellbook and paste your list'; window.open('https://commanderspellbook.com/find-my-combos/', '_blank', 'noopener'); } }, 'Check combos on Commander Spellbook'))));
+  }
+
+  if (fmt) {
+    const issues = legalityIssues(deck, A, fmt);
+    body.append(panel('Legality (' + fmt + ')', issues.length ? el('ul', {}, issues.map(i => el('li', { class: 'bad' }, i))) : el('div', { class: 'good' }, 'No issues found.'), el('div', { class: 'muted' }, 'Based on Scryfall legality data at the time cards were cached.')));
+  }
+
+  /* playtest */
+  const handBox = el('div', { class: 'hand' });
+  const lib = A.pool.flatMap(r => Array.from({ length: r.c.qty }, () => r)).filter(r => r.c.board !== 'cmdr');
+  const draw = () => { const a = lib.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } const h = a.slice(0, 7); handBox.textContent = ''; h.forEach(r => handBox.append(r.d.imgs[0] ? el('img', { src: r.d.imgs[0].small, loading: 'lazy' }) : el('div', { class: 'chip' }, r.c.name))); $('handInfo').textContent = h.filter(r => isLand(r.d)).length + ' lands in this hand'; };
+  const odds = hyper(lib.length, lib.filter(r => isLand(r.d)).length, 7);
+  body.append(panel('Playtest',
+    el('div', { class: 'row', style: 'margin-top:0' }, el('button', { onclick: draw }, 'Draw 7 / mulligan'), el('span', { id: 'handInfo', class: 'muted' })), handBox,
+    el('h3', {}, 'Lands in an opening 7'),
+    el('div', { class: 'muted' }, odds.map((p, k) => k + ': ' + (p * 100).toFixed(0) + '%').join('   ') + '   |   2-4 lands: ' + ((odds[2] + odds[3] + odds[4]) * 100).toFixed(0) + '%')));
+
+  /* card list */
+  const order = ['Commander', 'Creature', 'Planeswalker', 'Battle', 'Instant', 'Sorcery', 'Artifact', 'Enchantment', 'Land', 'Other', 'Sideboard'], groups = {}, showImg = deck.showImg;
+  for (const r of A.rows) { const g = r.c.board === 'cmdr' ? 'Commander' : r.c.board === 'side' ? 'Sideboard' : groupOf(r.d); (groups[g] = groups[g] || []).push(r); }
+  const list = panel('Cards', el('div', { class: 'row', style: 'margin-top:0' },
+    el('label', {}, el('input', { type: 'checkbox', checked: showImg, onchange: ev => { deck.showImg = ev.target.checked; renderDeck(); } }), 'Show images'),
+    el('button', { class: 'sec sm', onclick: async ev => { const ok = await copyText(deckToText(deck)); ev.target.textContent = ok ? 'Copied' : 'Copy failed'; } }, 'Copy decklist'),
+    el('button', { class: 'sec sm', onclick: () => download((safeName(deck.name) || 'deck') + '.txt', deckToText(deck)) }, 'Download .txt'),
+    el('button', { class: 'sm', onclick: () => { showTab('print'); } }, 'Print proxies')));
+  for (const g of order) {
+    if (!groups[g]) continue; const rs = groups[g].sort((a, b) => a.d.cmc - b.d.cmc || a.c.name.localeCompare(b.c.name));
+    list.append(el('h3', {}, g + ' (' + rs.reduce((s, r) => s + r.c.qty, 0) + ')'));
+    for (const r of rs) list.append(el('div', { class: 'crow' },
+      showImg && r.d.imgs[0] ? el('img', { src: r.d.imgs[0].small, loading: 'lazy' }) : null,
+      el('div', { class: 'nm' }, r.c.name, ' ', r.d.gc ? el('span', { class: 'badge chk' }, 'Game Changer') : null, el('div', { class: 'muted' }, r.d.mana_cost + (r.d.usd ? '  $' + r.d.usd : ''))),
+      el('span', { class: 'stepper' }, el('button', { class: 'sec sm', onclick: () => { r.c.qty--; if (r.c.qty <= 0) deck.cards = deck.cards.filter(x => x !== r.c); upd(); } }, '-'), el('b', {}, r.c.qty), el('button', { class: 'sec sm', onclick: () => { r.c.qty++; upd(); } }, '+')),
+      el('select', { onchange: ev => { r.c.board = ev.target.value; upd(); } }, [['main', 'Main'], ['side', 'Side'], ['cmdr', 'Cmdr']].map(([v, l]) => el('option', { value: v, selected: r.c.board === v }, l))),
+      el('button', { class: 'danger sm', onclick: () => { deck.cards = deck.cards.filter(x => x !== r.c); upd(); } }, 'X')));
+  }
+  body.append(list);
+}
+
+/* ---------- print ---------- */
+function renderPrintInfo() { const d = getDeck(); $('printDeckName').textContent = d ? 'Deck: ' + d.name : 'Open a deck first.'; }
+function loadImg(url) { return new Promise((res, rej) => { const i = new Image(); i.crossOrigin = 'anonymous'; i.onload = () => res(i); i.onerror = () => rej(new Error('Image blocked or failed to load')); i.src = url; }); }
+async function toJpeg(url) {
+  let src;
+  try { const r = await fetch(url); if (!r.ok) throw new Error('status ' + r.status); src = await createImageBitmap(await r.blob()); } catch (e) { src = await loadImg(url); }
+  const w = src.width || src.naturalWidth, h = src.height || src.naturalHeight, cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+  const ctx = cv.getContext('2d'); ctx.fillStyle = '#000'; ctx.fillRect(0, 0, w, h); ctx.drawImage(src, 0, 0); if (src.close) src.close();
+  const data = cv.toDataURL('image/jpeg', 0.92); cv.width = cv.height = 0; return data;
+}
+async function makePdf() {
+  const deck = getDeck(), st = $('pdfStatus'), btn = $('makePdf'); if (!deck) { st.textContent = 'Open a deck first.'; return; }
+  btn.disabled = true; st.classList.remove('bad');
+  try {
+    if (!window.jspdf) throw new Error('PDF library failed to load. Check your connection and reload.');
+    const urls = [];
+    for (const c of deck.cards) {
+      if (c.board === 'cmdr' && !$('pCmdr').checked) continue; if (c.board === 'side' && !$('pSide').checked) continue;
+      const d = S.cards.get(c.name); if (!d || !d.imgs.length) continue;
+      if (!$('pBasics').checked && /\bBasic\b/.test(front(d.type_line))) continue;
+      const faces = $('pBack').checked ? d.imgs : d.imgs.slice(0, 1);
+      for (let i = 0; i < c.qty; i++) for (const f of faces) urls.push(f.png);
+    }
+    if (!urls.length) throw new Error('Nothing to print with those options.');
+    const uniq = [...new Set(urls)], cache = new Map();
+    for (let i = 0; i < uniq.length; i += 4) { const ch = uniq.slice(i, i + 4); st.textContent = `Loading images ${Math.min(i + 4, uniq.length)} / ${uniq.length}...`; const out = await Promise.all(ch.map(toJpeg)); ch.forEach((u, k) => cache.set(u, out[k])); }
+    const { jsPDF } = window.jspdf, doc = new jsPDF({ unit: 'in', format: 'letter', orientation: 'portrait' }); doc.setDrawColor(170); doc.setLineWidth(0.005);
+    const pages = Math.ceil(urls.length / 9);
+    for (let p = 0; p < pages; p++) {
+      st.textContent = `Building PDF page ${p + 1} / ${pages}...`; if (p) doc.addPage('letter', 'portrait');
+      urls.slice(p * 9, p * 9 + 9).forEach((u, j) => { const x = 0.5 + (j % 3) * 2.5, y = 0.25 + Math.floor(j / 3) * 3.5; doc.addImage(cache.get(u), 'JPEG', x, y, 2.5, 3.5, u, 'FAST'); if ($('pGuides').checked) doc.rect(x, y, 2.5, 3.5); });
+      await sleep(0);
+    }
+    doc.save((safeName(deck.name) || 'mtg-proxies') + '.pdf'); st.textContent = `Done: ${pages} page${pages > 1 ? 's' : ''}, ${urls.length} cards.`;
+  } catch (e) { st.textContent = 'Error: ' + (e.message || e); st.classList.add('bad'); }
+  btn.disabled = false;
+}
+
+/* ---------- wiring ---------- */
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
+  document.querySelectorAll('#nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === name));
+  if (name === 'library') renderLibrary(); if (name === 'print') renderPrintInfo(); window.scrollTo(0, 0);
+}
+async function init() {
+  document.querySelectorAll('#nav button').forEach(b => b.addEventListener('click', () => showTab(b.dataset.tab)));
+  $('pickPhotos').onclick = () => $('photos').click(); $('takePhoto').onclick = () => $('cam').click();
+  $('photos').onchange = e => { runPhotos(e.target.files); e.target.value = ''; }; $('cam').onchange = e => { runPhotos(e.target.files); e.target.value = ''; };
+  $('liveStart').onclick = liveStart; $('liveStop').onclick = liveStop;
+  $('deckFile').onchange = async e => { const f = e.target.files[0]; if (f) $('deckText').value = await f.text(); };
+  $('importText').onclick = importText; $('addBox').oninput = onAddInput; $('saveDeck').onclick = saveScan;
+  $('clearScan').onclick = () => { if (confirm('Clear the review list?')) { S.scan.items.clear(); renderReview(); } };
+  $('makePdf').onclick = makePdf;
+  S.persist = await kv.ok();
+  if (!S.persist) {
+    const w = $('storeWarn'); w.style.display = '';
+    w.append(el('b', {}, 'This page can\'t save data. '), 'Phone files open as ' + location.protocol + '// pages, and the browser blocks storage there, so your decks disappear when you close the page. A backup file downloads each time you save a deck. Keep those files and use Restore in the Library tab. Hosting this file on https fixes it permanently.');
+  }
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    const p = $('livePanel'); p.textContent = '';
+    p.append(el('h2', {}, 'Live scan (camera)'), el('div', { class: 'muted' }, 'Live video is blocked on this page type (' + location.protocol + '//). Use Take photo above: it opens your normal camera app and works everywhere.'));
+  }
+  $('exportLib').onclick = () => download('mtg-library-backup.json', JSON.stringify({ v: 1, decks: S.decks }), 'application/json');
+  $('importLibBtn').onclick = () => $('importLib').click();
+  $('importLib').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!Array.isArray(j.decks)) throw new Error('not a library backup'); const have = new Set(S.decks.map(d => d.id)); for (const d of j.decks) if (!have.has(d.id)) S.decks.push(d); await persistDecks(); renderLibrary(); } catch (err) { alert('Restore failed: ' + err.message); } e.target.value = ''; };
+  S.decks = (await kv.get('decks')) || []; const co = (await kv.get('cards')) || {}; for (const k of Object.keys(co)) S.cards.set(k, co[k]);
+  renderLibrary();
+}
+window.__t = { S, norm, buildIndex, lookup, matchWords, segmentsOf, detectionsFromData, parseDeckText, deckToText, trim, analyze, bracketEstimate, legalityIssues, hyper, dedupe, formatOf };
+init();
+</script>
+</body>
+</html>
