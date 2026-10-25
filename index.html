@@ -132,6 +132,7 @@
 
 <!-- ============ LIBRARY ============ -->
 <section id="tab-library" class="tab">
+  <div class="panel" id="syncBox"></div>
   <div class="panel">
     <h2>Deck library</h2>
     <div id="libList"></div>
@@ -221,7 +222,7 @@ const kv = (() => {
     }
   };
 })();
-const persistDecks = () => kv.set('decks', S.decks);
+const persistDecks = async () => { await kv.set('decks', S.decks); cloudPushSoon(); };
 let cardSaveT; const persistCardsSoon = () => { clearTimeout(cardSaveT); cardSaveT = setTimeout(() => kv.set('cards', Object.fromEntries(S.cards)), 800); };
 
 /* ---------- name matching ---------- */
@@ -577,7 +578,7 @@ function onAddInput() {
 async function saveScan() {
   const items = [...S.scan.items.values()]; if (!items.length) return;
   const name = $('saveName').value.trim() || 'Deck ' + new Date().toLocaleDateString();
-  const deck = { id: 'd' + Date.now().toString(36), name, format: 'auto', created: Date.now(), cards: items.map(i => ({ name: i.name, qty: i.qty, board: i.board || 'main' })) };
+  const deck = { id: 'd' + Date.now().toString(36), name, format: 'auto', created: Date.now(), updated: Date.now(), cards: items.map(i => ({ name: i.name, qty: i.qty, board: i.board || 'main' })) };
   S.decks.push(deck); await persistDecks(); S.scan.items.clear(); $('saveName').value = ''; renderReview(); renderLibrary();
   if (!S.persist) { try { download('mtg-library-backup.json', JSON.stringify({ v: 1, decks: S.decks }), 'application/json'); } catch (e) {} }
   openDeck(deck.id);
@@ -587,14 +588,15 @@ async function saveScan() {
 const getDeck = () => S.decks.find(d => d.id === S.cur);
 function renderLibrary() {
   const box = $('libList'); box.textContent = '';
-  if (!S.decks.length) { box.append(el('div', { class: 'muted' }, 'No decks yet. Scan or import one first.')); return; }
-  for (const d of S.decks.slice().sort((a, b) => (b.updated || b.created) - (a.updated || a.created))) {
+  const live = S.decks.filter(d => !d.deleted);
+  if (!live.length) { box.append(el('div', { class: 'muted' }, 'No decks yet. Scan or import one first.')); return; }
+  for (const d of live.slice().sort((a, b) => (b.updated || b.created) - (a.updated || a.created))) {
     const n = d.cards.filter(c => c.board !== 'side').reduce((s, c) => s + c.qty, 0);
     box.append(el('div', { class: 'crow' },
       el('div', { class: 'nm' }, el('b', {}, d.name), el('div', { class: 'muted' }, n + ' cards')),
       el('button', { class: 'sm', onclick: () => openDeck(d.id) }, 'Open'),
-      el('button', { class: 'sec sm', onclick: async () => { const c = JSON.parse(JSON.stringify(d)); c.id = 'd' + Date.now().toString(36); c.name += ' (copy)'; S.decks.push(c); await persistDecks(); renderLibrary(); } }, 'Copy'),
-      el('button', { class: 'danger sm', onclick: async () => { if (confirm('Delete "' + d.name + '"?')) { S.decks = S.decks.filter(x => x.id !== d.id); if (S.cur === d.id) S.cur = null; await persistDecks(); renderLibrary(); } } }, 'Delete')));
+      el('button', { class: 'sec sm', onclick: async () => { const c = JSON.parse(JSON.stringify(d)); c.id = 'd' + Date.now().toString(36); c.name += ' (copy)'; c.created = c.updated = Date.now(); delete c.syncedRev; S.decks.push(c); await persistDecks(); renderLibrary(); } }, 'Copy'),
+      el('button', { class: 'danger sm', onclick: async () => { if (confirm('Delete "' + d.name + '"?')) { d.deleted = true; d.cards = []; d.updated = Date.now(); if (S.cur === d.id) S.cur = null; await persistDecks(); renderLibrary(); } } }, 'Delete')));
   }
 }
 function download(name, text, type) { const a = el('a', { href: URL.createObjectURL(new Blob([text], { type: type || 'text/plain' })), download: name }); document.body.append(a); a.click(); setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 500); }
@@ -855,6 +857,96 @@ async function makePdf() {
   btn.disabled = false;
 }
 
+
+/* ---------- cloud sync (Firebase: Google sign-in + Firestore, last-write-wins per deck) ---------- */
+// Optional: paste your Firebase config object here to hardcode it for every device, e.g.
+// const FIREBASE_CONFIG = { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." };
+const FIREBASE_CONFIG = null;
+const RULES_TEXT = `rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    match /users/{uid}/decks/{deckId} {
+      allow read, delete: if request.auth != null && request.auth.uid == uid;
+      allow create, update: if request.auth != null && request.auth.uid == uid
+        && request.resource.data.name is string && request.resource.data.name.size() <= 120
+        && request.resource.data.cards.size() <= 1000;
+    }
+  }
+}`;
+const cloud = { user: null, unsub: null, mods: null, db: null, auth: null, err: '', status: '', pushT: null };
+const revOf = d => d.updated || d.created || 0;
+async function cloudConfig() { return FIREBASE_CONFIG || (await kv.get('fbconfig')) || null; }
+async function cloudInit() {
+  if (cloud.mods || !/^https?:$/.test(location.protocol)) { renderSync(); return; }
+  const cfg = await cloudConfig(); if (!cfg) { renderSync(); return; }
+  try {
+    const b = 'https://www.gstatic.com/firebasejs/10.14.1/';
+    const [A, Au, F] = await Promise.all([import(b + 'firebase-app.js'), import(b + 'firebase-auth.js'), import(b + 'firebase-firestore.js')]);
+    cloud.mods = { A, Au, F }; const app = A.initializeApp(cfg); cloud.auth = Au.getAuth(app); cloud.db = F.getFirestore(app);
+    Au.onAuthStateChanged(cloud.auth, u => { cloud.user = u; if (u) cloudListen(); else cloudStopListen(); renderSync(); });
+  } catch (e) { cloud.err = 'Could not start Firebase: ' + (e.message || e); }
+  renderSync();
+}
+function cloudStopListen() { if (cloud.unsub) { cloud.unsub(); cloud.unsub = null; } }
+function adopt(id, d) {
+  const local = S.decks.find(x => x.id === id), lr = local ? revOf(local) : -1, cr = d.updated || 0;
+  if (cr > lr) {
+    const nd = { id, name: d.name || 'Untitled', format: d.format || 'auto', created: d.created || cr, updated: cr, cards: d.cards || [], deleted: !!d.deleted, syncedRev: cr };
+    if (local) { nd.showImg = local.showImg; S.decks[S.decks.indexOf(local)] = nd; } else S.decks.push(nd);
+    return true;
+  }
+  if (local && cr === lr && local.syncedRev !== cr) local.syncedRev = cr;
+  return false;
+}
+function cloudListen() {
+  cloudStopListen(); const { F } = cloud.mods; cloud.status = 'Syncing...';
+  cloud.unsub = F.onSnapshot(F.collection(cloud.db, 'users', cloud.user.uid, 'decks'), async snap => {
+    let changed = false; snap.docChanges().forEach(ch => { if (ch.type !== 'removed' && adopt(ch.doc.id, ch.doc.data())) changed = true; });
+    if (changed) { await kv.set('decks', S.decks); renderLibrary(); if (S.cur && $('tab-deck').classList.contains('active')) { const d = getDeck(); if (d && !d.deleted) renderDeck(); } }
+    await pushDirty(); cloud.status = 'Up to date'; renderSync();
+  }, err => { cloud.status = 'Sync error: ' + (err.code || err.message || err); renderSync(); });
+}
+async function pushDirty() {
+  if (!cloud.user || !cloud.mods) return; const { F } = cloud.mods; let pushed = false;
+  for (const d of S.decks) {
+    const rev = revOf(d); if (rev <= (d.syncedRev || 0)) continue;
+    try {
+      await F.setDoc(F.doc(cloud.db, 'users', cloud.user.uid, 'decks', d.id), { name: String(d.name).slice(0, 120), format: d.format || 'auto', created: d.created || rev, updated: rev, deleted: !!d.deleted, cards: d.cards.map(c => ({ name: c.name, qty: c.qty, board: c.board })) });
+      d.syncedRev = rev; pushed = true;
+    } catch (e) { cloud.status = 'Upload failed: ' + (e.code || e.message || e); renderSync(); return; }
+  }
+  if (pushed) await kv.set('decks', S.decks);
+}
+function cloudPushSoon() { if (!cloud.user) return; clearTimeout(cloud.pushT); cloud.pushT = setTimeout(async () => { cloud.status = 'Uploading...'; renderSync(); await pushDirty(); if (!/failed/i.test(cloud.status)) cloud.status = 'Up to date'; renderSync(); }, 1200); }
+function parseFbConfig(text) {
+  const cfg = {}; for (const m of text.matchAll(/([A-Za-z]+)\s*["']?\s*:\s*["']([^"']+)["']/g)) cfg[m[1]] = m[2];
+  return cfg.apiKey && cfg.projectId && cfg.appId && cfg.authDomain ? cfg : null;
+}
+async function cloudSignIn() {
+  const { Au } = cloud.mods;
+  try { await Au.signInWithPopup(cloud.auth, new Au.GoogleAuthProvider()); }
+  catch (e) {
+    cloud.err = { 'auth/popup-blocked': 'The sign-in popup was blocked. Allow popups for this site and try again.', 'auth/popup-closed-by-user': 'Sign-in was cancelled.', 'auth/unauthorized-domain': 'This site\'s domain is not authorized in Firebase. Add ' + location.hostname + ' under Authentication > Settings > Authorized domains.', 'auth/operation-not-allowed': 'Google sign-in is not enabled in your Firebase project (Authentication > Sign-in method).' }[e.code] || ('Sign-in failed: ' + (e.code || e.message)); renderSync();
+  }
+}
+function renderSync() {
+  const box = $('syncBox'); if (!box) return; box.textContent = ''; box.append(el('h2', {}, 'Cloud sync'));
+  if (!/^https?:$/.test(location.protocol)) { box.append(el('div', { class: 'muted' }, 'Sync needs the hosted https page. Open the tool from its web address instead of a downloaded file.')); return; }
+  if (cloud.err) box.append(el('div', { class: 'bad', style: 'margin-bottom:8px' }, cloud.err));
+  if (!cloud.mods) {
+    box.append(el('div', { class: 'muted' }, 'Sync your decks across devices with your own free Firebase project. Paste the config snippet from Firebase (Project settings > Your apps > Web app).'));
+    const ta = el('textarea', { placeholder: 'const firebaseConfig = { apiKey: "...", authDomain: "...", projectId: "...", appId: "..." };', style: 'min-height:110px' });
+    box.append(ta, el('div', { class: 'row' }, el('button', { onclick: async () => { const c = parseFbConfig(ta.value); if (!c) { cloud.err = 'Could not find apiKey, authDomain, projectId and appId in that text.'; renderSync(); return; } cloud.err = ''; await kv.set('fbconfig', c); cloudInit(); } }, 'Save config')));
+    return;
+  }
+  const rules = el('details', {}, el('summary', {}, 'Security rules to paste in Firestore'), el('pre', { class: 'muted', style: 'white-space:pre-wrap;font-size:12px' }, RULES_TEXT), el('button', { class: 'sec sm', onclick: async ev => { ev.target.textContent = (await copyText(RULES_TEXT)) ? 'Copied' : 'Copy failed'; } }, 'Copy rules'));
+  if (!cloud.user) {
+    box.append(el('div', { class: 'row', style: 'margin-top:0' }, el('button', { onclick: cloudSignIn }, 'Sign in with Google'), el('button', { class: 'sec sm', onclick: async () => { await kv.set('fbconfig', null); location.reload(); } }, 'Remove config')), rules); return;
+  }
+  box.append(el('div', {}, 'Signed in as ', el('b', {}, cloud.user.email || cloud.user.uid)), el('div', { class: 'muted' }, cloud.status || ''),
+    el('div', { class: 'row' }, el('button', { class: 'sec sm', onclick: async () => { cloud.status = 'Syncing...'; renderSync(); await pushDirty(); cloud.status = 'Up to date'; renderSync(); } }, 'Sync now'), el('button', { class: 'sec sm', onclick: () => { cloud.mods.Au.signOut(cloud.auth); } }, 'Sign out')), rules);
+}
+
 /* ---------- wiring ---------- */
 function showTab(name) {
   document.querySelectorAll('.tab').forEach(t => t.classList.toggle('active', t.id === 'tab-' + name));
@@ -881,11 +973,11 @@ async function init() {
   }
   $('exportLib').onclick = () => download('mtg-library-backup.json', JSON.stringify({ v: 1, decks: S.decks }), 'application/json');
   $('importLibBtn').onclick = () => $('importLib').click();
-  $('importLib').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!Array.isArray(j.decks)) throw new Error('not a library backup'); const have = new Set(S.decks.map(d => d.id)); for (const d of j.decks) if (!have.has(d.id)) S.decks.push(d); await persistDecks(); renderLibrary(); } catch (err) { alert('Restore failed: ' + err.message); } e.target.value = ''; };
-  S.decks = (await kv.get('decks')) || []; const co = (await kv.get('cards')) || {}; for (const k of Object.keys(co)) S.cards.set(k, co[k]);
-  renderLibrary();
+  $('importLib').onchange = async e => { const f = e.target.files[0]; if (!f) return; try { const j = JSON.parse(await f.text()); if (!Array.isArray(j.decks)) throw new Error('not a library backup'); const have = new Set(S.decks.map(d => d.id)); for (const d of j.decks) if (!have.has(d.id)) { d.updated = d.updated || d.created || Date.now(); delete d.syncedRev; S.decks.push(d); } await persistDecks(); renderLibrary(); } catch (err) { alert('Restore failed: ' + err.message); } e.target.value = ''; };
+  S.decks = (await kv.get('decks')) || []; for (const d of S.decks) if (!d.updated) d.updated = d.created || Date.now(); const co = (await kv.get('cards')) || {}; for (const k of Object.keys(co)) S.cards.set(k, co[k]);
+  renderLibrary(); renderSync(); cloudInit();
 }
-window.__t = { S, norm, buildIndex, lookup, matchWords, segmentsOf, detectionsFromData, parseDeckText, deckToText, trim, analyze, bracketEstimate, legalityIssues, hyper, dedupe, formatOf };
+window.__t = { cloud, adopt, pushDirty, S, norm, buildIndex, lookup, matchWords, segmentsOf, detectionsFromData, parseDeckText, deckToText, trim, analyze, bracketEstimate, legalityIssues, hyper, dedupe, formatOf };
 init();
 </script>
 </body>
