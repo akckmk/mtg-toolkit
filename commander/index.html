@@ -652,6 +652,7 @@ function buildTable(){
     }
   }
   root.innerHTML='<div class="tablebg"></div>'+html+'<button id="hub" aria-label="Game menu"><small>ROUND</small><b id="hubR">'+game.round+'</b></button>';
+  lastSize=(W>=H?'L':'P')+W+'x'+H;
   layoutSeats();renderAllSeats();
   $('#hub').onclick=openHub;
   placeHub();
@@ -669,7 +670,19 @@ function placeHub(){var h=$('#hub'),t=$('#game .table');if(!h||!t)return;
   // sit on the seam between the two long sides of the table
   var m=game.layout==='facing'?null:$('#game .table>.zone.grow'),r=(m||t).getBoundingClientRect();
   h.style.left=(r.left+r.width/2)+'px';h.style.top=(r.top+r.height/2)+'px'}
-var resizeT;window.addEventListener('resize',function(){if(view!=='game')return;clearTimeout(resizeT);resizeT=setTimeout(buildTable,120)});
+/* Rebuild only when the table really changes shape. The on-screen keyboard also fires
+   resize events; rebuilding then would wipe an open edit panel mid-typing. */
+var resizeT,lastSize=null;
+function typing(){var a=document.activeElement;return !!(a&&/^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName))}
+function onResize(){if(view!=='game')return;clearTimeout(resizeT);resizeT=setTimeout(function(){
+  if(typing())return;
+  var W=window.innerWidth,H=window.innerHeight,key=(W>=H?'L':'P')+W+'x'+H;
+  if(key===lastSize)return;
+  var open=$('#game .panel'),keep=null;
+  if(open){var pc=open.parentNode;keep={i:+pc.id.slice(2),kind:open.dataset.kind}}
+  buildTable();if(keep&&keep.kind)seatPanel(keep.i,keep.kind)},150)}
+window.addEventListener('resize',onResize);
+document.addEventListener('focusout',function(){setTimeout(function(){if(!typing())onResize()},350)});
 
 function seatBg(p){
   var img=p.img?getImg(p.img):(p.art&&p.commander?scryArt(p.commander):null);
@@ -747,7 +760,7 @@ window.addEventListener('pointercancel',function(e){stopHold(e.pointerId,false)}
 /* ===== per-seat panels (they rotate with the tile) ===== */
 function seatPanel(i,kind){
   var pc=$('#pc'+i),p=game.players[i];var old=$('.panel',pc);if(old)old.remove();
-  var el=document.createElement('div');el.className='panel';pc.appendChild(el);
+  var el=document.createElement('div');el.className='panel';el.dataset.kind=kind;pc.appendChild(el);
   function close(){el.remove();updateSeat(i)}
   function stepRow(label,sub,dot,get,set,lethal){
     return {html:'<div class="crow">'+(dot?'<span class="dot" style="background:'+dot+'"></span>':'')+'<div class="cl"><b>'+esc(label)+'</b>'+(sub?'<small>'+esc(sub)+'</small>':'')+'</div><div class="stepper"><button data-d="-1">−</button><output class="'+(lethal&&get()>=lethal?'lethal':'')+'">'+get()+'</output><button data-d="1">+</button></div></div>',set:set,get:get,lethal:lethal};
