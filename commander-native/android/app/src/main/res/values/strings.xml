@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Commander Table</string>
+    <string name="title_activity_main">Commander Table</string>
+    <string name="package_name">com.akckmk.commandertable</string>
+    <string name="custom_url_scheme">com.akckmk.commandertable</string>
+</resources>

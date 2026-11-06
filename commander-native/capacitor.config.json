@@ -1,0 +1,8 @@
+{
+  "appId": "com.akckmk.commandertable",
+  "appName": "Commander Table",
+  "webDir": "www",
+  "android": { "allowMixedContent": false, "backgroundColor": "#0b0d14" },
+  "ios": { "contentInset": "never", "backgroundColor": "#0b0d14", "scrollEnabled": true },
+  "plugins": { "StatusBar": { "overlaysWebView": true, "style": "DARK" } }
+}
